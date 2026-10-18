@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en" data-theme="mono">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TuxOps: Linux server operations, security and recovery lab</title>
+<style>
+:root{--r:4px;--bw:1px;--sh:none}
+[data-theme=mono]{--bg:#0a0d0a;--pn:#121712;--ink:#E7E5E4;--mu:#a8a29e;--ac:#37F712;--at:#37F712;--on:#0a0d0a;--ln:#2d3d2d;--f:"Space Mono",ui-monospace,Menlo,Consolas,monospace}
+[data-theme=neo]{--bg:#FBFBF9;--pn:#fff;--ink:#1C293C;--mu:#475569;--ac:#FDC800;--at:#432DD7;--on:#1C293C;--ln:#1C293C;--r:8px;--bw:2px;--sh:4px 4px 0 #1C293C;--f:Inter,system-ui,sans-serif}
+[data-theme=terra]{--bg:#F3E9D8;--pn:#fff;--ink:#111827;--mu:#4b5563;--ac:#C56A3C;--at:#8F4520;--on:#111827;--ln:#d6c3a5;--r:8px;--f:"DM Serif Display",Georgia,serif}
+[data-theme=ent]{--bg:#09090b;--pn:#131316;--ink:#fafafa;--mu:#a1a1aa;--ac:#0C5CAB;--at:#6db3f2;--on:#fafafa;--ln:#27272a;--r:8px;--sh:0 8px 24px rgba(0,0,0,.45);--f:"IBM Plex Sans",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--f)}
+header,.wrap{max-width:1100px;margin:auto;padding:0 16px}
+header{padding-top:28px}
+h1{font-size:clamp(1.8rem,5vw,2.8rem);line-height:1.1;margin:0 0 8px}
+.sub{color:var(--mu);max-width:66ch;margin:0 0 16px}
+.bar{height:12px;border:var(--bw) solid var(--ln);border-radius:var(--r);background:var(--pn);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ac);transition:width .3s}
+#n{margin:6px 0 0;color:var(--mu)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 20px}
+.tools span{color:var(--mu)}
+button{font:inherit;color:var(--ink);background:var(--pn);border:var(--bw) solid var(--ln);border-radius:var(--r);padding:6px 12px;cursor:pointer}
+button[aria-pressed=true],button[aria-current=true]{background:var(--ac);color:var(--on)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--at);outline-offset:2px}
+.wrap{display:grid;grid-template-columns:240px 1fr;gap:16px;padding-bottom:48px}
+nav{display:flex;flex-direction:column;gap:6px;align-self:start;position:sticky;top:8px}
+nav button{display:flex;justify-content:space-between;gap:8px;text-align:left}
+main{background:var(--pn);border:var(--bw) solid var(--ln);border-radius:var(--r);box-shadow:var(--sh);padding:20px;min-width:0}
+h2{margin:0 0 4px;font-size:1.6rem}
+.goal{color:var(--mu);margin:0 0 12px}
+label{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--ln);cursor:pointer}
+input[type=checkbox]{accent-color:var(--ac);width:18px;height:18px;margin-top:4px;flex:none}
+input:checked+span{color:var(--mu);text-decoration:line-through}
+.s{font-style:normal;font-size:.8rem;border:1px solid var(--at);color:var(--at);border-radius:var(--r);padding:0 6px;margin-left:8px;white-space:nowrap}
+.ev{margin-top:14px;padding:10px 12px;border-left:4px solid var(--ac);background:var(--bg)}
+pre{overflow:auto;background:var(--bg);padding:12px;border-radius:var(--r);font:13px/1.5 ui-monospace,Menlo,Consolas,monospace}
+@media(max-width:760px){.wrap{grid-template-columns:1fr}nav{position:static;flex-direction:row;overflow-x:auto;padding-bottom:4px}nav button{flex:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+<h1>TuxOps</h1>
+<p class="sub">A Linux server operations, security and recovery lab: Debian VMs configured from the command line, then rebuilt from code. Thirteen phases; each one leaves evidence you can commit to the repo. Progress saves in this browser.</p>
+<div class="bar"><i id="b"></i></div>
+<p id="n" aria-live="polite"></p>
+<div class="tools">
+<span>Style</span>
+<button data-t="mono" aria-pressed="true">Mono</button>
+<button data-t="neo" aria-pressed="false">Neobrutalism</button>
+<button data-t="terra" aria-pressed="false">Terracotta</button>
+<button data-t="ent" aria-pressed="false">Enterprise</button>
+<button id="c" aria-pressed="false">Core only</button>
+<button id="x">Export checklist (.md)</button>
+<button id="r">Reset progress</button>
+</div>
+</header>
+<div class="wrap"><nav aria-label="Phases"></nav><main></main></div>
+<script>
+const P=[
+["Lab","Disposable, rebuildable Debian lab with two VMs.","Baseline inventory and a documented restore-to-clean procedure.","Create a minimal Debian server VM (no desktop) and a second VM as client and backup target|Automate the install with preseed so a fresh server rebuilds in minutes|Set hostname, timezone and locale; create a non-root admin with sudo|Reach the VM over SSH from your workstation|Snapshot a clean baseline and document how to restore it|Write the lab inventory: interfaces, addresses, disks, partitions, filesystems, services|~Repeat the install on Rocky/Alma to compare apt/dnf, AppArmor/SELinux, ufw/firewalld"],
+["Boot, kernel, packages","Know how the machine starts, how its kernel is configured and how software is maintained.","Boot-failure casebook and a patch-and-reboot procedure.","Trace firmware → GRUB → kernel → initramfs → systemd with journalctl -b and systemd-analyze critical-chain|Break and recover: bad fstab, wrong root=, broken GRUB, via rescue mode and a live-ISO chroot|Rebuild the initramfs, boot an older kernel, reset a lost root password from the bootloader|Inspect, load and blacklist kernel modules; persist a sysctl change and prove it survives reboot|apt/dpkg internals: pinning, holds, signed-by keys, file → package (dpkg -S), integrity (debsums)|Write the patch procedure: pending updates, needrestart, when a kernel update forces a reboot|Recover from a failed package install|~Compile and boot a trimmed custom kernel (make localmodconfig)"],
+["Users, access, PAM","Control who can read files and run privileged commands, and prove it.","Access-control policy, user-provisioning procedure, permissions runbook.","Create, lock and remove users and groups; read /etc/passwd, group and shadow|Write sudo rules in /etc/sudoers.d/ and validate with visudo -c|Shared directory with group ownership and setgid; umask, ACLs (setfacl), file capabilities (setcap)|Audit SUID/SGID files and explain each one|PAM: lock out after failures (pam_faillock) and enforce password quality (pam_pwquality)|SSH keys only, AllowGroups, no root login, no password auth|auditd rules on /etc/passwd, /etc/sudoers and privileged commands; trace a staged change with ausearch|Diagnose a service that fails because its account can't read a file|Prove an ordinary user is denied protected files and admin actions"],
+["Storage","Manage capacity, survive a disk loss and prove recovery.","Storage diagram, capacity checker, tested expansion and rebuild procedures.","lsblk, blkid, df, du, df -i; mount by UUID in fstab; recover from an invalid entry|LVM: PV → VG → LV; extend a volume and its filesystem online|LVM snapshot of a live volume, then roll back|mdadm RAID1: fail a disk, replace it, watch the rebuild, get an alert|LUKS volume unlocked via crypttab|Disk-full lab: find the cause (du, lsof +L1 for deleted-but-open files) and clean up safely|Inode-exhaustion lab, and how it differs from full capacity|Write a capacity checker for filesystem and inode usage|~XFS vs ext4 (XFS can't shrink); user quotas"],
+["Processes, memory, kernel behaviour","Diagnose resource problems instead of restarting things.","Resource diagnostic report and a decision tree for CPU, memory, I/O and process faults.","ps, pstree, signals, /proc/PID/status, fd and limits|Free vs available memory, cache and swap; vmstat, iostat, PSI in /proc/pressure|Find a runaway process with top and pidstat; apply nice and renice|strace and lsof a misbehaving program until you find the missing file or permission|Trigger the OOM killer; read the dmesg report and set oom_score_adj|Limit a test service with systemd MemoryMax and CPUQuota and show the effect|Read dmesg and journalctl -k; change a sysctl and test persistence|Write the decision tree: CPU vs memory vs I/O vs process|~perf record; core dumps with coredumpctl"],
+["systemd services and timers","Build and operate services with native Linux mechanisms.","A working service, its timer and logs, plus install and troubleshooting notes.","Inspect units, drop-ins, dependencies and ordering; know enabled vs started vs masked|Write a service unit for a small health-check program, run by a dedicated user|Set a restart policy, and note when auto-restart hides a real fault|Harden it: NoNewPrivileges, ProtectSystem, PrivateTmp; improve its systemd-analyze security score|Write a .timer with Persistent=true; prove a missed run is caught up after downtime|Document cron vs timers and when to choose each|journald: persistent storage, filter by unit, boot and priority, set retention limits|~Socket-activated and templated units"],
+["Networking and nftables","Trace a failure from interface to service.","Topology, nftables policy and a documented end-to-end connectivity investigation.","ip addr, route, neigh; diagnose a wrong address, missing route or dead gateway|Separate DNS faults (getent) from routing and port faults (ss, nc)|Capture and read packets with tcpdump|Run nginx; fix a service that listens only on loopback|Write an nftables policy from scratch: default-drop inbound, stateful rules, logging|Verify blocked ports from the second VM|Network namespaces + veth + bridge: build, route and NAT a small network|Write the network troubleshooting runbook|~WireGuard tunnel, dnsmasq DHCP/DNS, chrony, tc netem fault injection"],
+["Security and hardening","Define a defensible baseline and measure it.","Hardening checklist, audit report and a before/after comparison.","Write a short threat model: what is protected, what could go wrong|Inventory services, listening ports, packages and privileged accounts; remove what is unneeded|Write an AppArmor profile for your health-check service: complain → enforce|Sysctl hardening (kptr_restrict, dmesg_restrict, ptrace_scope, rp_filter); note what each can break|Enable unattended security updates|Pass secrets with systemd LoadCredential= instead of environment variables|Write security-audit.sh: finding, severity, evidence, remediation|Re-run after fixes (and Lynis) and record before/after scores|~SELinux on the Rocky VM: contexts, booleans, audit2allow"],
+["Health checks and monitoring","Find problems before an administrator has to.","A health-check utility with documented checks, thresholds, outputs and failure tests.","Build health-check: filesystems, inodes, load, memory, swap, failed units, required services, backup age|Read thresholds from a config file; return warning and critical exit codes|Human-readable and JSON output|Run it from a systemd timer; results land in the journal|Inject a failed service, a full disk and a failing command; confirm each is caught|Write a status report an administrator can read without raw logs|~Prometheus node_exporter plus a textfile-collector metric for backup age"],
+["Backup and recovery","Prove data comes back, not just that files exist.","Working backups, retention rules, timed restore tests and a DR runbook.","List what must be backed up and what can be rebuilt; set RPO and RTO|Back up /etc, application data and service config|Snapshot-consistent copy: LVM snapshot (with fsfreeze) → rsync -aHAX --link-dest|Encrypted, deduplicated backups with restic or borg, plus a prune policy|Restricted backup account; destination on the second VM|Timestamps, logging, explicit error handling, nonzero exit codes|Schedule with a systemd timer; detect a failed destination|Restore a deleted file, a database and a service config; record the time|Write the disaster-recovery runbook"],
+["Ansible","Rebuild everything from code.","A fresh server reaches the target state from the repo alone.","Inventory, key-based SSH, review gathered facts|Roles: baseline packages, users and groups, SSH, nftables, directories and permissions|Deploy the health check, backup script, units and timers|Templates and variables; handlers that reload services on change|Check mode and --diff before applying|A second run reports zero changes (idempotent)|Keep secrets out of the repo; use Ansible Vault if needed|Write the fresh-machine deployment guide"],
+["Incident simulations","Detect, diagnose and recover without blindly restarting everything. One fault at a time, disposable lab only.","One write-up per incident: healthy state, detection, evidence, root cause, recovery, prevention.","Service failure: stop a service and find it from the logs|DNS failure: break the resolver and isolate it|Firewall block: drop a permitted connection and fix the rule|Disk pressure on a test filesystem: alert and safe cleanup|Inode exhaustion on a bounded filesystem|Permission error: remove access to a service file|Memory pressure: strict limit or OOM kill|Failed backup job: logged and detected|Bad config: validate, fail the reload, roll back|Crash, not a clean reboot: hard power-off the VM (or sysrq b via /proc/sysrq-trigger) and recover|Lost RAID disk: degrade, replace, rebuild|Expired TLS cert on nginx: detect it before it bites"],
+["Package, test, release","Make it something another admin can install and trust.","A public repo a stranger can follow without asking you anything.","Package scripts, units, timers and config as a .deb|Publish to a signed internal APT repo (reprepro); Ansible installs the package|Add argument handling and sensible errors; keep scripts ShellCheck-clean|Automated tests, including failure cases|Architecture diagram, ports, dependencies, privileges, file locations|Sanitised sample reports and real test results only|Clean-rebuild guide, known limitations, LICENSE, README with a demo"],
+["Release checklist","Objective criteria for calling it done.","Every box checked, with evidence in reports/.","Fresh server deploys from code without manual steps|Intended privileges, SSH limits and firewall verified|Persistent mounts, LVM extension and a RAID rebuild demonstrated|Custom systemd service and timer run with useful logs|Health checks detect injected service, disk and resource faults|Backup restored and timed against RPO/RTO|Ansible reruns cleanly with no changes|At least five incident reports, including a crash recovery|tuxops installs from the APT repo as a .deb|A stranger can deploy, test and recover it from the README"]
+];
+const TREE=`tuxops/
+├── README.md  LICENSE  CHANGELOG.md
+├── docs/           architecture, lab-setup, security-policy,
+│   │               storage-design, backup-and-recovery, troubleshooting
+│   └── incidents/  one file per drill
+├── scripts/        inventory, health-check, security-audit, disk-check, backup
+├── systemd/        tuxops-health.{service,timer}, tuxops-backup.{service,timer}
+├── ansible/        ansible.cfg, inventory/, playbooks/, roles/
+├── packaging/      debian/ (control, rules, postinst), reprepro conf
+├── preseed/        preseed.cfg for unattended installs
+├── config/examples/
+├── tests/          scripts/, integration/
+└── reports/        sample-health, security-audit, restore-test`;
+const K='tuxops',R=document.documentElement,$=s=>document.querySelector(s);
+let D={},cur=0,core=false;
+try{D=JSON.parse(localStorage.getItem(K))||{}}catch(e){}
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(D))}catch(e){}};
+const tasks=(p,pi)=>p[3].split('|').map((t,i)=>({id:pi+'.'+i,s:t[0]=='~',t:t.replace(/^~/,'')})).filter(x=>!(core&&x.s));
+const cnt=pi=>{const a=tasks(P[pi],pi);return[a.filter(x=>D[x.id]).length,a.length]};
+function bar(){
+let d=0,n=0;
+P.forEach((_,i)=>{const[a,b]=cnt(i);d+=a;n+=b});
+$('#n').textContent=d+' of '+n+' tasks done';
+$('#b').style.width=(n?100*d/n:0)+'%';
+$('nav').innerHTML=P.map((p,i)=>{const[a,b]=cnt(i);return`<button data-i="${i}" aria-current="${i==cur}"><span>${i<13?i+' ':''}${p[0]}</span><span>${a}/${b}</span></button>`}).join('')+`<button data-i="${P.length}" aria-current="${cur==P.length}"><span>Repo layout</span></button>`;
+}
+function view(){
+const m=$('main');
+if(cur==P.length){m.innerHTML='<h2>Repo layout</h2><p class="goal">Grow it as you go. Keep keys, private logs and real inventories out of the public repo.</p><pre>'+TREE+'</pre>';return}
+const p=P[cur];
+m.innerHTML=`<h2>${p[0]}</h2><p class="goal">${p[1]}</p>`+tasks(p,cur).map(x=>`<label><input type="checkbox" id="${x.id}"${D[x.id]?' checked':''}><span>${x.t}${x.s?'<em class="s">stretch</em>':''}</span></label>`).join('')+`<div class="ev"><b>Evidence:</b> ${p[2]}</div>`;
+}
+$('nav').onclick=e=>{const b=e.target.closest('button');if(b){cur=+b.dataset.i;view();bar()}};
+$('main').onchange=e=>{D[e.target.id]=e.target.checked;save();bar()};
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{
+R.dataset.theme=b.dataset.t;
+document.querySelectorAll('[data-t]').forEach(o=>o.setAttribute('aria-pressed',o==b));
+try{localStorage.setItem('tuxops-theme',b.dataset.t)}catch(e){}
+});
+$('#c').onclick=e=>{core=!core;e.target.setAttribute('aria-pressed',core);view();bar()};
+$('#x').onclick=()=>{
+let s='# TuxOps checklist\n';
+P.forEach((p,i)=>{s+='\n## '+p[0]+'\n';tasks(p,i).forEach(x=>s+='- ['+(D[x.id]?'x':' ')+'] '+x.t+'\n')});
+const a=document.createElement('a');
+a.href=URL.createObjectURL(new Blob([s],{type:'text/markdown'}));
+a.download='tuxops-checklist.md';a.click();
+};
+$('#r').onclick=()=>{if(confirm('Clear all saved progress?')){D={};save();view();bar()}};
+try{const t=localStorage.getItem('tuxops-theme');if(t){const b=$('[data-t="'+t+'"]');if(b)b.click()}}catch(e){}
+view();bar();
+</script>
+</body>
+</html>
